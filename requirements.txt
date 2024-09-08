@@ -15,6 +15,7 @@ Jinja2==3.1.4
 MarkupSafe==2.1.5
 multidict==6.0.5
 PyJWT==2.9.0
+python-dotenv==1.0.1
 requests==2.32.3
 twilio==9.3.0
 urllib3==2.2.2

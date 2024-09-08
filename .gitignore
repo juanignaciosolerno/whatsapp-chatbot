@@ -1,7 +1,17 @@
+# Ignore system files
+.DS_Store
+
+# Ignore compiled Python files (configuration and caché)
+__pycache__/
+*.py[cod]
+*.pyc
+
+
 # Ignorar el entorno virtual
 venv/
 .venv/
 
-# Ignorar archivos de configuración o caché
-__pycache__/
-*.pyc
+# Ignorar environment variables files
+env
+.env
+
