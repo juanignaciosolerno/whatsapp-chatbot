@@ -13,7 +13,6 @@ load_dotenv()
 app = Flask(__name__)
 
 auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
-print(auth_token)
 
 # Hello World endpoint
 @app.route("/")
@@ -58,7 +57,7 @@ def validate_twilio_request(f):
 
 # Respond with a simple message with MessagingResponse object if it is a valid Twilio request
 @app.route('/message', methods=['POST'])
-@validate_twilio_request
+#@validate_twilio_request
 def incoming_message():
     """Twilio Messaging URL - receives incoming messages from Twilio"""
     # Create a new TwiML response
