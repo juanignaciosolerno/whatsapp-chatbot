@@ -5,6 +5,9 @@ https://www.twilio.com/docs/usage/tutorials/how-to-set-up-your-python-and-flask-
 
 WHATSAPP
 https://www.twilio.com/docs/whatsapp/quickstart/python
+https://console.twilio.com/us1/develop/sms/try-it-out/whatsapp-learn?frameUrl=%2Fconsole%2Fsms%2Fwhatsapp%2Flearn%3Fx-target-region%3Dus1
+https://www.twilio.com/docs/conversations/use-twilio-sandbox-for-whatsapp#optional-remove-the-inbound-url-in-the-whatsapp-sandbox-settings-in-the-twilio-console
+
 
 SECURITY
 https://www.twilio.com/docs/usage/security#http-authentication
