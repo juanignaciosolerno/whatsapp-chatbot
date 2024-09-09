@@ -31,6 +31,18 @@ def sms_reply():
     return str(resp)
 
 
+# Respond with a simple message with MessagingResponse object 
+@app.route("/wp", methods=['GET', 'POST'])
+def wp_reply():
+    
+    """Respond to incoming calls with a simple text message."""
+    # Start our TwiML response
+    resp = MessagingResponse()
+    # Add a message
+    resp.message("The Robots are coming! Head for the hills!")
+    return str(resp)
+
+
 # Validate Twilio Requests with a RequestValidator object
 def validate_twilio_request(f):
     """Validates that incoming requests genuinely originated from Twilio"""
