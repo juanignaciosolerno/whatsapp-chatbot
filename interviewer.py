@@ -162,14 +162,9 @@ status = {
 def interview():
     print("Interview endpoint alcanzado")
 
-
-    # Start our TwiML response
+    # Start TwiML response
     resp = MessagingResponse()
-    # Add a message
-    resp.message("The Robots are coming! Head for the hills!")
-    #return str(resp)
-
-
+    
     # Obtener el índice del último mensaje recibido o asignarle 0
     current_user_msg_index = status.get("current_user_msg_index", 0)
     print(f'Mensaje del usuario recibido: índice asignado {current_user_msg_index}')
@@ -223,20 +218,27 @@ def interview():
                 # Actualiza el estado de ingreso de la fila en la base de datos
                 status['database_update'] = True
 
-                return "Gracias nuevamente, su entrevista ya terminó"
+                # Asignar el mensaje de respuesta al Objeto de Respuesta Twilio
+                resp.message("Gracias nuevamente, su entrevista ya terminó")
+                return str(resp)
         
         else:
-            return "Gracias nuevamente, su entrevista ya terminó"
+            # Asignar el mensaje de respuesta al Objeto de Respuesta Twilio
+            resp.message("Gracias nuevamente, su entrevista ya terminó")
+            return str(resp)
     
     # Obtener la siguiente pregunta y devolverla
     system_msg = fetch_question(current_system_msg_index)
+    resp.message(system_msg)
     print(f'Mensaje del sistema enviado: índice {current_system_msg_index}')
+    print(f'{system_msg}')
     
     # Incrementar el índice del sistema y del usuario después de enviar la pregunta
     status["current_system_msg_index"] += 1
     status["current_user_msg_index"] += 1
 
-    return system_msg
+    return str(resp)
+
 
 
 
