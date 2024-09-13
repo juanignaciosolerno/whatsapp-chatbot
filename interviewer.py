@@ -86,7 +86,7 @@ def incoming_message():
 ### ENTREVISTA
 
 
-# Preguntas predefinidas
+# Preguntas predefinidas, 13 (indices 0-12)
 questions = [
     "Hola, soy Vecinal, un asistente virtual. Te escribo porque estoy evaluando los servicios de la Muni en el barrio. ¿Cómo estás?",
     "¿Tienes unos minutos para responder algunas preguntas sobre tu experiencia con los servicios de la Muni?",
@@ -109,42 +109,48 @@ def fetch_question(question_index):
     if question_index < len(questions):
         return questions[question_index]
     else:
-        return 'Tu entrevista ya ha terminado, muchas gracias!'
+        return "Perdón, pero tu entrevista ya ha terminado. Gracias nuevamente!"
 
 
 # Estado global (esto se debería manejar por sesión o en una base de datos para múltiples usuarios)
 status = {
-    "current_message": 0, 
+    "current_system_msg_index": 0,
+    "current_user_msg_index": 0,
     "user_messages": {}
 }
 
+
 @app.route('/interview', methods=['POST'])
 def interview():
-    # Obtener el índice del mensaje actual
-    incoming_msg_index = status.get('current_message', 0)
 
-    # Revisar si la entrevista ya ha terminado
-    if incoming_msg_index > len(questions):
-        return "Tu entrevista ya ha terminado. Gracias nuevamente!"
+    # Obtener el índice del último mensaje enviado o asignarle 0
+    current_system_msg_index = status.get("current_system_msg_index", 0)
+
+    # Obtener el índice del último mensaje recibido o asignarle 0
+    current_user_msg_index = status.get("current_user_msg_index", 0)
+
+    # Si el último mensaje ya fue enviado (mensaje de despedida), responder amablemente que la entrevista terminó
+    if current_system_msg_index > len(questions):
+        return "Perdón, pero tu entrevista ya ha terminado. Gracias nuevamente!"
     
     # Obtener el mensaje entrante del usuario
-    incoming_msg = request.values.get('Body', '').strip()
+    user_msg = request.values.get('Body', '').strip()
 
     # Si el mensaje está vacío, devolver una respuesta de error
-    if not incoming_msg:
-        response_msg = 'Hola!. No encuentro ningún mensaje, me has querido decir algo?'
-        return response_msg
+    if not user_msg:
+        system_msg = 'Hola! No encuentro ningún texto en tu mensaje, me has querido decir algo?'
+        return system_msg
 
     # Almacenar el mensaje del usuario
-    status["user_messages"][incoming_msg_index] = incoming_msg
+    status["user_messages"][current_user_msg_index] = user_msg
 
-    # Obtener la siguiente pregunta
-    response_msg = fetch_question(incoming_msg_index)
+    # Obtener el mensaje del sistema que corresponde
+    system_msg = fetch_question(current_system_msg_index)
 
     # Incrementar el índice del mensaje actual
-    status["current_message"] += 1
+    status["current_system_msg_index"] += 1
 
-    return response_msg
+    return system_msg
 
 
 if __name__ == "__main__":
