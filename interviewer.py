@@ -1,14 +1,46 @@
 from flask import Flask, request, redirect, abort
+
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.request_validator import RequestValidator
 from functools import wraps
 
 import os
-
 from dotenv import load_dotenv
+import gspread
+
 
 # Load environmental variables from .env
 load_dotenv()
+
+# Initialize a Gspread Client
+credentials_dict = {
+    "type": os.getenv("TYPE"),
+    "project_id": os.getenv("PROJECT_ID"),
+    "private_key_id": os.getenv("PRIVATE_KEY_ID"),
+    "private_key": os.getenv("PRIVATE_KEY"),
+    "client_email": os.getenv("CLIENT_EMAIL"),
+    "client_id": os.getenv("CLIENT_ID"),
+    "auth_uri": os.getenv("AUTH_URI"),
+    "token_uri": os.getenv("TOKEN_URI"),
+    "auth_provider_x509_cert_url": os.getenv("AUTH_PROVIDER_X509_CERT_URL"),
+    "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL")
+}
+gc = gspread.service_account_from_dict(credentials_dict)
+if gc:
+    print('Google Sheets Client ready.')
+
+# Get the worksheet with results
+key = "1a7NbCtYgD7okcroJmhV07yB3ZqA_FqzGdcvPWBZGg0E"
+sh = gc.open_by_key(key)
+worksheet = 1
+worksheet = sh.get_worksheet(worksheet)
+if worksheet:
+    print("Google Sheet worksheet ready.")
+
+header = worksheet.get("A1:Z1")[0]
+header = [int(col_name) for col_name in header]
+if header:
+    print('Worksheet colum names obtained.')
 
 app = Flask(__name__)
 
@@ -122,17 +154,16 @@ status = {
 
 @app.route('/interview', methods=['POST'])
 def interview():
-
     # Obtener el índice del último mensaje enviado o asignarle 0
     current_system_msg_index = status.get("current_system_msg_index", 0)
+    
+    # Si el índice del mensaje del sistema está fuera del rango de preguntas, responder que la entrevista terminó
+    if current_system_msg_index >= len(questions):
+        return "Perdón, pero tu entrevista ya ha terminado. Gracias nuevamente!"
 
     # Obtener el índice del último mensaje recibido o asignarle 0
     current_user_msg_index = status.get("current_user_msg_index", 0)
 
-    # Si el último mensaje ya fue enviado (mensaje de despedida), responder amablemente que la entrevista terminó
-    if current_system_msg_index > len(questions):
-        return "Perdón, pero tu entrevista ya ha terminado. Gracias nuevamente!"
-    
     # Obtener el mensaje entrante del usuario
     user_msg = request.values.get('Body', '').strip()
 
@@ -147,10 +178,30 @@ def interview():
     # Obtener el mensaje del sistema que corresponde
     system_msg = fetch_question(current_system_msg_index)
 
-    # Incrementar el índice del mensaje actual
+    if current_system_msg_index == (len(questions) - 1): # Si es la última pregunta y se está despidiendo
+        # Obtener el resultado de la entrevista
+        interview_result = status['user_messages']
+
+        # Crear una lista para almacenar las respuestas
+        interview_list = []
+
+        # Iterar sobre el encabezado y obtener las respuestas
+        for i, column_name in enumerate(questions):
+            answer = interview_result.get(i, "")
+            interview_list.append(answer)
+
+        # Convertir la lista en una tupla e ingresarla en la base de datos
+        interview_tuple = tuple(interview_list)
+        # Asume que `worksheet` está definido y está apuntando a la hoja de cálculo adecuada
+        worksheet.append_row(interview_tuple)
+        print('Entrevista ingresada en la base de datos')
+
+    # Incrementar el índice del mensaje del sistema y del usuario
     status["current_system_msg_index"] += 1
+    status["current_user_msg_index"] += 1
 
     return system_msg
+
 
 
 if __name__ == "__main__":
