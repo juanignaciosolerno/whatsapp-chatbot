@@ -8,6 +8,8 @@ import os
 from dotenv import load_dotenv
 import gspread
 
+import time
+
 
 # Load environmental variables from .env
 load_dotenv()
@@ -115,10 +117,14 @@ def incoming_message():
     # Return the TwiML
     return str(resp)
 
-### ENTREVISTA
 
 
-# Preguntas predefinidas, 13 (indices 0-12)
+
+
+
+### ENTREVISTA ###
+
+# Preguntas predefinidas
 questions = [
     "Hola, soy Vecinal, un asistente virtual. Te escribo porque estoy evaluando los servicios de la Muni en el barrio. ¿Cómo estás?",
     "¿Tienes unos minutos para responder algunas preguntas sobre tu experiencia con los servicios de la Muni?",
@@ -135,72 +141,103 @@ questions = [
     "Muchas gracias por tu tiempo y por ayudar a mejorar el barrio. ¡Que tengas un lindo día!"
 ]
 
-
 # Función para obtener la pregunta actual
 def fetch_question(question_index):
-    if question_index <= len(questions):
+    if 0 <= question_index < len(questions):
         return questions[question_index]
     else:
         return "Perdón, pero tu entrevista ya ha terminado. Gracias nuevamente!"
 
-
-# Estado global (esto se debería manejar por sesión o en una base de datos para múltiples usuarios)
+# Estado global
 status = {
     "current_system_msg_index": 0,
     "current_user_msg_index": 0,
-    "user_messages": {}
+    "user_messages": {},
+    "start_time": None,
+    "end_time": None,
+    "database_update": False
 }
-
 
 @app.route('/interview', methods=['POST'])
 def interview():
-    # Obtener el índice del último mensaje enviado o asignarle 0
-    current_system_msg_index = status.get("current_system_msg_index", 0)
-    
-    # Si el índice del mensaje del sistema está fuera del rango de preguntas, responder que la entrevista terminó
-    if current_system_msg_index >= len(questions):
-        return "Perdón, pero tu entrevista ya ha terminado. Gracias nuevamente!"
+    print("Interview endpoint alcanzado")
+
+
+    # Start our TwiML response
+    resp = MessagingResponse()
+    # Add a message
+    resp.message("The Robots are coming! Head for the hills!")
+    #return str(resp)
+
 
     # Obtener el índice del último mensaje recibido o asignarle 0
     current_user_msg_index = status.get("current_user_msg_index", 0)
+    print(f'Mensaje del usuario recibido: índice asignado {current_user_msg_index}')
 
     # Obtener el mensaje entrante del usuario
     user_msg = request.values.get('Body', '').strip()
+    print(f'Mensaje del usuario: {user_msg}')
 
     # Si el mensaje está vacío, devolver una respuesta de error
     if not user_msg:
-        system_msg = 'Hola! No encuentro ningún texto en tu mensaje, me has querido decir algo?'
-        return system_msg
-
-    # Almacenar el mensaje del usuario
+        return 'Hola! No encuentro ningún texto en tu mensaje, me has querido decir algo?'
+    
+    # Almacenar el mensaje del usuario en status
     status["user_messages"][current_user_msg_index] = user_msg
 
-    # Obtener el mensaje del sistema que corresponde
+    # Inicializar el tiempo de inicio si es la primera respuesta
+    if current_user_msg_index == 0:
+        status['start_time'] = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime())
+        print(f"Momento de inicio de la entrevista: {status['start_time']}")
+
+    # Obtener el índice del último mensaje del sistema
+    current_system_msg_index = status.get("current_system_msg_index", 0)
+
+    # Verificar si la entrevista ha terminado
+    if current_system_msg_index >= len(questions):
+
+        if status['database_update'] == False:
+
+            # Obtener el resultado de la entrevista
+            interview_result = status['user_messages']
+
+            # Crear una lista para almacenar las respuestas
+            interview_list = [interview_result.get(i, "") for i in range(len(questions))]
+            
+            # Agregar el tiempo de inicio y finalización de la entrevista
+            interview_list.append(status['start_time'])
+            status['end_time'] = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime())
+            interview_list.append(status['end_time'])
+            print(f"Momento de cierre de la entrevista: {status['end_time']}")
+
+            # Convertir la lista en una tupla e ingresarla en la base de datos
+            interview_tuple = tuple(interview_list)
+
+            # Verifica que no se haya ingresado ya la fila a la base de datos
+            if status['database_update'] == False:
+
+                # Asume que `worksheet` está definido y está apuntando a la hoja de cálculo adecuada
+                worksheet.append_row(interview_tuple)
+                print('Entrevista ingresada en la base de datos')
+
+                # Actualiza el estado de ingreso de la fila en la base de datos
+                status['database_update'] = True
+
+                return "Gracias nuevamente, su entrevista ya terminó"
+        
+        else:
+            return "Gracias nuevamente, su entrevista ya terminó"
+    
+    # Obtener la siguiente pregunta y devolverla
     system_msg = fetch_question(current_system_msg_index)
-
-    if current_system_msg_index == (len(questions) - 1): # Si es la última pregunta y se está despidiendo
-        # Obtener el resultado de la entrevista
-        interview_result = status['user_messages']
-
-        # Crear una lista para almacenar las respuestas
-        interview_list = []
-
-        # Iterar sobre el encabezado y obtener las respuestas
-        for i, column_name in enumerate(questions):
-            answer = interview_result.get(i, "")
-            interview_list.append(answer)
-
-        # Convertir la lista en una tupla e ingresarla en la base de datos
-        interview_tuple = tuple(interview_list)
-        # Asume que `worksheet` está definido y está apuntando a la hoja de cálculo adecuada
-        worksheet.append_row(interview_tuple)
-        print('Entrevista ingresada en la base de datos')
-
-    # Incrementar el índice del mensaje del sistema y del usuario
+    print(f'Mensaje del sistema enviado: índice {current_system_msg_index}')
+    
+    # Incrementar el índice del sistema y del usuario después de enviar la pregunta
     status["current_system_msg_index"] += 1
     status["current_user_msg_index"] += 1
 
     return system_msg
+
 
 
 
