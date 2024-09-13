@@ -106,7 +106,7 @@ questions = [
 
 # Función para obtener la pregunta actual
 def fetch_question(question_index):
-    if question_index < len(questions):
+    if question_index <= len(questions):
         return questions[question_index]
     else:
         return "Perdón, pero tu entrevista ya ha terminado. Gracias nuevamente!"
