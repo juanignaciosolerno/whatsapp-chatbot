@@ -26,7 +26,8 @@ credentials_dict = {
     "token_uri": os.getenv("TOKEN_URI"),
     "auth_provider_x509_cert_url": os.getenv("AUTH_PROVIDER_X509_CERT_URL"),
     "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL")
-}
+    }
+
 gc = gspread.service_account_from_dict(credentials_dict)
 if gc:
     print('Google Sheets Client ready.')
