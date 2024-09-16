@@ -15,3 +15,5 @@ venv/
 env
 .env
 
+# Ignorar credenciales
+.service_account.json
