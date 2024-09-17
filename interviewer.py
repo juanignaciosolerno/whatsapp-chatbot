@@ -130,10 +130,10 @@ questions = [
     "¿Podrías decirme por qué le diste ese puntaje?",
     "¿Del 1 al 10, cómo calificarías la limpieza y la recolección de residuos en el barrio?",
     "¿Qué aspectos te parecen los más importantes a mejorar con respecto a esto último?",
-    #"¿Del 1 al 10 cómo calificarías el estado de las calles y las veredas?",
-    #"¿Qué aspectos te parecen los más importantes a mejorar con respecto a esto último?",
-    #"¿Con respecto a la seguridad, hay algo que te preocupa o te parece importante mejorar?",
-    #"¿En qué aspectos del barrio te parece que debería trabajarse?",
+    "¿Del 1 al 10 cómo calificarías el estado de las calles y las veredas?",
+    "¿Qué aspectos te parecen los más importantes a mejorar con respecto a esto último?",
+    "¿Con respecto a la seguridad, hay algo que te preocupa o te parece importante mejorar?",
+    "¿En qué aspectos del barrio te parece que debería trabajarse?",
     "¿Hay algo que esperas que la Municipalidad o el intendente haga en el barrio?",
     "Te agradezco mucho por compartirme tus opiniones. ¿Hay algo más que te gustaría decirme?",
     "Te molestaría decirme en qué barrio, localidad y provincia vives?",
@@ -167,7 +167,7 @@ def get_location_data(location_string):
 
 
 # Estado global
-status = {
+status_template = {
     "current_system_msg_index": 0,
     "current_user_msg_index": 0,
     "user_messages": {},
@@ -176,7 +176,7 @@ status = {
     "database_update": False
 }
 
-
+status = status_template
 
 
 
