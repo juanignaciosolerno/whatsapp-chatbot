@@ -4,11 +4,15 @@ from twilio.twiml.messaging_response import MessagingResponse
 from twilio.request_validator import RequestValidator
 from functools import wraps
 
+import time
 import os
 from dotenv import load_dotenv
-import gspread
 
-import time
+import gspread
+import googlemaps
+
+
+
 
 
 # Load environmental variables from .env
@@ -32,24 +36,29 @@ credentials_path=".service_account.json"
 
 gc = gspread.service_account(filename=credentials_path)
 if gc:
-    print('Google Sheets Client ready.')
+    print('Gspread Client ready.')
 
-# Get the worksheet with results
 key = "1a7NbCtYgD7okcroJmhV07yB3ZqA_FqzGdcvPWBZGg0E"
 sh = gc.open_by_key(key)
 worksheet = 1
 worksheet = sh.get_worksheet(worksheet)
 if worksheet:
-    print("Google Sheet worksheet ready.")
+    print("Gsheet fetched.")
 
 header = worksheet.get("A1:Z1")[0]
 header = [int(col_name) for col_name in header]
 if header:
-    print('Worksheet colum names obtained.')
+    print('Worksheet colum names fetched.')
+
+# Initialize a Twilio Client
+auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
+
+# Initialize a Google Maps Client
+gmaps = googlemaps.Client(key=os.environ.get("GOOGLE_API_KEY"))
+if gmaps:
+    print("GoogleMaps Client ready")
 
 app = Flask(__name__)
-
-auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
 
 # Hello World endpoint
 @app.route("/")
@@ -60,18 +69,6 @@ def hello():
 # Respond with a simple message with MessagingResponse object 
 @app.route("/sms", methods=['GET', 'POST'])
 def sms_reply():
-    """Respond to incoming calls with a simple text message."""
-    # Start our TwiML response
-    resp = MessagingResponse()
-    # Add a message
-    resp.message("The Robots are coming! Head for the hills!")
-    return str(resp)
-
-
-# Respond with a simple message with MessagingResponse object 
-@app.route("/wp", methods=['GET', 'POST'])
-def wp_reply():
-    
     """Respond to incoming calls with a simple text message."""
     # Start our TwiML response
     resp = MessagingResponse()
@@ -111,12 +108,10 @@ def incoming_message():
     """Twilio Messaging URL - receives incoming messages from Twilio"""
     # Create a new TwiML response
     resp = MessagingResponse()
-
     # <Message> a text back to the person who texted us
     body = "Your text to me was {0} characters long. Webhooks are neat :)" \
         .format(len(request.values['Body']))
     resp.message(body)
-
     # Return the TwiML
     return str(resp)
 
@@ -129,20 +124,23 @@ def incoming_message():
 
 # Preguntas predefinidas
 questions = [
-    "Hola, soy Vecinal, un asistente virtual. Te escribo porque estoy evaluando los servicios de la Muni en el barrio. ¿Cómo estás?",
-    "¿Tienes unos minutos para responder algunas preguntas sobre tu experiencia con los servicios de la Muni?",
+    #"Hola, soy Vecinal, un asistente virtual. Te escribo porque estoy evaluando los servicios de la Muni en el barrio. ¿Cómo estás?",
+    "¿Tienes unos minutos para responder algunas preguntas?",
     "¿Del 1 al 10 cuan satisfecho/a estás con los servicios que ofrece la municipalidad en tu barrio?",
     "¿Podrías decirme por qué le diste ese puntaje?",
     "¿Del 1 al 10, cómo calificarías la limpieza y la recolección de residuos en el barrio?",
     "¿Qué aspectos te parecen los más importantes a mejorar con respecto a esto último?",
-    "¿Del 1 al 10 cómo calificarías el estado de las calles y las veredas?",
-    "¿Qué aspectos te parecen los más importantes a mejorar con respecto a esto último?",
-    "¿Con respecto a la seguridad, hay algo que te preocupa o te parece importante mejorar?",
-    "¿En qué aspectos del barrio te parece que debería trabajarse?",
+    #"¿Del 1 al 10 cómo calificarías el estado de las calles y las veredas?",
+    #"¿Qué aspectos te parecen los más importantes a mejorar con respecto a esto último?",
+    #"¿Con respecto a la seguridad, hay algo que te preocupa o te parece importante mejorar?",
+    #"¿En qué aspectos del barrio te parece que debería trabajarse?",
     "¿Hay algo que esperas que la Municipalidad o el intendente haga en el barrio?",
     "Te agradezco mucho por compartirme tus opiniones. ¿Hay algo más que te gustaría decirme?",
-    "Muchas gracias por tu tiempo y por ayudar a mejorar el barrio. ¡Que tengas un lindo día!"
+    "Te molestaría decirme en qué barrio, localidad y provincia vives?",
 ]
+
+
+
 
 # Función para obtener la pregunta actual
 def fetch_question(question_index):
@@ -150,6 +148,23 @@ def fetch_question(question_index):
         return questions[question_index]
     else:
         return "Perdón, pero tu entrevista ya ha terminado. Gracias nuevamente!"
+
+# Función para obtener la data de localización
+def get_location_data(location_string):
+    geocode_result = gmaps.geocode(location_string)
+    if geocode_result:
+        lat = geocode_result[0]['geometry']['location']['lat']
+        long = geocode_result[0]['geometry']['location']['lat']
+        location_type = geocode_result[0]['geometry']['location_type']
+        formatted_address = geocode_result[0]['formatted_address']
+    location_data = {
+        'lat':lat,
+        'long':long,
+        'location_type':location_type,
+        'formatted_address':formatted_address
+        }
+    return location_data
+
 
 # Estado global
 status = {
@@ -160,6 +175,11 @@ status = {
     "end_time": None,
     "database_update": False
 }
+
+
+
+
+
 
 @app.route('/interview', methods=['POST'])
 def interview():
@@ -175,6 +195,9 @@ def interview():
     # Obtener el mensaje entrante del usuario
     user_msg = request.values.get('Body', '').strip()
     print(f'Mensaje del usuario: {user_msg}')
+
+    user_phone_number = request.values.get('From', '').strip()
+    print(user_phone_number)
 
     # Si el mensaje está vacío, devolver una respuesta de error
     if not user_msg:
@@ -192,7 +215,7 @@ def interview():
     current_system_msg_index = status.get("current_system_msg_index", 0)
 
     # Verificar si la entrevista ha terminado
-    if current_system_msg_index >= len(questions):
+    if current_system_msg_index == len(questions):
 
         if status['database_update'] == False:
 
@@ -201,33 +224,42 @@ def interview():
 
             # Crear una lista para almacenar las respuestas
             interview_list = [interview_result.get(i, "") for i in range(len(questions))]
+
+            # Obtener la información geográfica
+            location_data = get_location_data(user_msg)
+            interview_list.append(location_data['lat'])
+            interview_list.append(location_data['long'])
+            interview_list.append(location_data['location_type'])
+            interview_list.append(location_data['formatted_address'])
+
             
             # Agregar el tiempo de inicio y finalización de la entrevista
             interview_list.append(status['start_time'])
+
             status['end_time'] = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime())
             interview_list.append(status['end_time'])
             print(f"Momento de cierre de la entrevista: {status['end_time']}")
 
+            # Obtener el número de teléfono del entrevistado
+            interview_list.append(user_phone_number)
+
             # Convertir la lista en una tupla e ingresarla en la base de datos
             interview_tuple = tuple(interview_list)
 
-            # Verifica que no se haya ingresado ya la fila a la base de datos
-            if status['database_update'] == False:
+            # Asume que `worksheet` está definido y está apuntando a la hoja de cálculo adecuada
+            worksheet.append_row(interview_tuple)
+            print('Entrevista ingresada en la base de datos')
 
-                # Asume que `worksheet` está definido y está apuntando a la hoja de cálculo adecuada
-                worksheet.append_row(interview_tuple)
-                print('Entrevista ingresada en la base de datos')
+            # Actualiza el estado de ingreso de la fila en la base de datos
+            status['database_update'] = True
 
-                # Actualiza el estado de ingreso de la fila en la base de datos
-                status['database_update'] = True
-
-                # Asignar el mensaje de respuesta al Objeto de Respuesta Twilio
-                resp.message("Gracias nuevamente, su entrevista ya terminó")
-                return str(resp)
+            # Asignar el mensaje de respuesta al Objeto de Respuesta Twilio
+            resp.message("Muchas gracias por tu tiempo y por ayudar a mejorar el barrio. ¡Que tengas un lindo día!")
+            return str(resp)
         
         else:
             # Asignar el mensaje de respuesta al Objeto de Respuesta Twilio
-            resp.message("Gracias nuevamente, su entrevista ya terminó")
+            resp.message("Gracias nuevamente, tu entrevista ya terminó")
             return str(resp)
     
     # Obtener la siguiente pregunta y devolverla
@@ -248,9 +280,3 @@ def interview():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
